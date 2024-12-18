@@ -7,12 +7,12 @@ import (
 	"strings"
 	"testing"
 
-	differ "github.com/mstergianis/pacdiff"
+	differ "github.com/mstergianis/pacdiff/pkg/differ"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-const testDir = "tests"
+const testDir = "../../test"
 
 func TestDiffer(t *testing.T) {
 	tests, err := os.ReadDir(testDir)

@@ -1,0 +1,10 @@
+{
+  "type Todo": {
+    "fields": {
+      "ExtraField": {
+        "type": "int",
+        "presentIn": "left"
+      }
+    }
+  }
+}
