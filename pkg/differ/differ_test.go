@@ -1,12 +1,14 @@
 package differ_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path"
 	"strings"
 	"testing"
 
+	"github.com/mstergianis/pacdiff/pkg/diff"
 	differ "github.com/mstergianis/pacdiff/pkg/differ"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -19,8 +21,7 @@ func TestDiffer(t *testing.T) {
 	require.NoError(t, err, "ReadDir should not fail reading the tests directory")
 
 	t.Run("differ with unset packages", func(t *testing.T) {
-		err := differ.NewDiffer().Diff()
-		assert.Error(t, err, "differ must fail when no packages have been provided")
+		_, err := differ.NewDiffer().Diff()
 		assert.Equal(t, err, differ.PackageNotExist(""))
 	})
 
@@ -35,8 +36,13 @@ func TestDiffer(t *testing.T) {
 				tc.right,
 			))
 
-			err = d.Diff()
-			require.NoError(t, err)
+			actual, err := d.Diff()
+			if tc.errorStr == nil {
+				assert.NoError(t, err)
+			} else {
+				assert.EqualError(t, err, *tc.errorStr)
+			}
+			assert.Equal(t, tc.expected, actual)
 		})
 	}
 }
@@ -61,20 +67,59 @@ func readTest(dir string) (*testCase, error) {
 			}
 		case strings.HasPrefix(name, "expected"):
 			{
-				tc.expected = path.Join(dir, name)
+				expectedRaw, err := os.ReadFile(path.Join(dir, name))
+				if err != nil {
+					return nil, err
+				}
+				tc.expected, err = diff.ParseDiff(expectedRaw)
+				if err != nil {
+					return nil, err
+				}
+			}
+		case strings.HasPrefix(name, "error"):
+			{
+				errFile := path.Join(dir, name)
+				errorRaw, err := os.ReadFile(errFile)
+				if err == os.ErrNotExist {
+					continue
+				}
+				if err != nil {
+					return nil, err
+				}
+				errMap := map[string]any{}
+				err = json.Unmarshal(errorRaw, &errMap)
+				if err != nil {
+					return nil, err
+				}
+
+				const errField = "error"
+				rawErrString, errFieldIsPresent := errMap[errField]
+				if !errFieldIsPresent {
+					return nil, fmt.Errorf("could not find the field %q when parsing the file: %q", errField, errFile)
+				}
+				errString, ok := rawErrString.(string)
+				if !ok {
+					return nil, fmt.Errorf("could not cast %q to a string when parsing the file: %q", errField, errFile)
+				}
+				tc.errorStr = &errString
 			}
 		}
 	}
 
-	if tc.left == "" || tc.right == "" || tc.expected == "" {
-		return nil, fmt.Errorf("missing a field in the test case %q: left %q, right %q, expected %q", dir, tc.left, tc.right, tc.expected)
+	if stringIsEmpty(tc.left) || stringIsEmpty(tc.right) {
+		return nil, fmt.Errorf("missing a field in the test case %q: left %q, right %q", dir, tc.left, tc.right)
 	}
 
 	return tc, nil
 }
 
+func stringIsEmpty(s string) bool {
+	return strings.TrimSpace(s) == ""
+}
+
 type testCase struct {
 	left     string
 	right    string
-	expected string
+	expected diff.Diff
+	errorStr *string
 }

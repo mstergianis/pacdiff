@@ -1,7 +1,11 @@
 package diff
 
+import "encoding/json"
+
 type Diff map[string]any
 
-func ParseDiff(raw string) Diff {
-	return nil
+func ParseDiff(raw []byte) (Diff, error) {
+	d := Diff{}
+	err := json.Unmarshal(raw, &d)
+	return d, err
 }
