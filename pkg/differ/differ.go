@@ -6,7 +6,6 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"log"
 	"os"
 
 	"github.com/mstergianis/pacdiff/pkg/diff"
@@ -26,7 +25,7 @@ func NewDiffer(opts ...Option) *Differ {
 	return d
 }
 
-func WithPackages(left, right string) func(*Differ) {
+func WithPackages(left, right string) Option {
 	return func(d *Differ) {
 		d.leftPath = left
 		d.rightPath = right
@@ -70,17 +69,21 @@ func (d *Differ) Diff() (diff.Diff, error) {
 		switch leftT := leftV.Decl.(type) {
 		case *ast.TypeSpec:
 			{
-				rightT := rightPkg.Scope.Objects[k].Decl.(*ast.TypeSpec)
-				log.Println("leftT.Name", leftT.Name)
+				rightScopedObject, presentInRightScope := rightPkg.Scope.Objects[k]
+				if !presentInRightScope {
+					continue
+				}
+				rightT := rightScopedObject.Decl.(*ast.TypeSpec)
 				switch leftConcrete := leftT.Type.(type) {
 				case *ast.StructType:
 					{
 						rightConcrete := rightT.Type.(*ast.StructType)
 						rightM := fieldListToMap(rightConcrete.Fields.List)
 
-						// log.Printf("%s %v %T", leftConcrete.Fields.List[0].Type, leftConcrete.Fields.List[0].Type, leftConcrete.Fields.List[0].Type)
-
 						for _, field := range leftConcrete.Fields.List {
+							if len(field.Names) == 0 {
+								continue
+							}
 							if _, inRight := rightM[field.Names[0].Name]; !inRight {
 								result["type "+leftT.Name.Name] = map[string]any{
 									"fields": map[string]any{
