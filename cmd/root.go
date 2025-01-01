@@ -29,7 +29,9 @@ pacdiff <LEFT-PACKAGE> <RIGHT-PACKAGE>
 			return err
 		}
 
-		p := printer.NewPrinter()
+		p := printer.NewPrinter(
+			printer.WithDepth(cmd.Flags().Lookup("depth-delimiter").Value.String()),
+		)
 		p.Print(diff)
 		return nil
 	},
@@ -50,6 +52,14 @@ func init() {
 	// will be global for your application.
 
 	// rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.cmd.yaml)")
+	rootCmd.Flags().StringP("depth-delimiter", "d", "2s", `provide a delimiter to use as a depth
+
+grammar:
+  depth-delimiter = { number } space-type .
+  space-type = "s" | "t" .
+  number = decimal-digit { decimal-digit } .
+  decimal-digit = "0" | "1" | ... | "8" | "9" .
+`)
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.

@@ -57,8 +57,10 @@ func (p *Printer) print(depth int, d diff.Diff) {
 
 func (p *Printer) printDepthMarker(depth int) {
 	for i := 0; i < depth; i++ {
-		fmt.Printf(p.depthMarker)
+		fmt.Print(p.depthMarker)
 	}
 }
 
-func (p *Printer) PrintUnified(d diff.Diff) {}
+func (p *Printer) PrintUnified(d diff.Diff) {
+	panic("Printer.PrintUnified - unimplemented")
+}
