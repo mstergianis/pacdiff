@@ -6,6 +6,7 @@ package cmd
 import (
 	"os"
 
+	"github.com/mstergianis/pacdiff/pkg/depthparser"
 	"github.com/mstergianis/pacdiff/pkg/differ"
 	"github.com/mstergianis/pacdiff/pkg/printer"
 	"github.com/spf13/cobra"
@@ -29,8 +30,13 @@ pacdiff <LEFT-PACKAGE> <RIGHT-PACKAGE>
 			return err
 		}
 
+		depthStop, err := depthparser.Parse(cmd.Flags().Lookup("depth-delimiter").Value.String())
+		if err != nil {
+			return err
+		}
+
 		p := printer.NewPrinter(
-			printer.WithDepth(cmd.Flags().Lookup("depth-delimiter").Value.String()),
+			printer.WithDepth(depthStop),
 		)
 		p.Print(diff)
 		return nil

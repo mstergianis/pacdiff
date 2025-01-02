@@ -1,4 +1,4 @@
-package parser
+package depthparser
 
 import (
 	"testing"
@@ -7,7 +7,7 @@ import (
 )
 
 func TestLexer(t *testing.T) {
-	tests := []testCase{
+	tests := []lexerTestCase{
 		{
 			name:  "only_number",
 			input: "44",
@@ -52,7 +52,7 @@ func TestLexer(t *testing.T) {
 	}
 }
 
-type testCase struct {
+type lexerTestCase struct {
 	name     string
 	input    string
 	expected []token

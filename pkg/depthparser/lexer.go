@@ -1,4 +1,4 @@
-package parser
+package depthparser
 
 import (
 	"fmt"
@@ -28,7 +28,6 @@ func (l *lexer) lex() token {
 		}
 		if l.atEof {
 			return l.eof()
-
 		}
 		return l.errorf("unsupported characters in input")
 	}
