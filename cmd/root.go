@@ -4,6 +4,7 @@ Copyright © 2024 Michael Stergianis michael.stergianis@gmail.com
 package cmd
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/mstergianis/pacdiff/pkg/depthparser"
@@ -14,14 +15,12 @@ import (
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   "pacdiff LEFT-PACKAGE RIGHT-PACKAGE",
+	Use:   "pacdiff <LEFT-PACKAGE> <RIGHT-PACKAGE>",
 	Short: "Golang semantic package differ",
 	Long: `pacdiff is a cli tool for diffing golang packages.
 
 pacdiff <LEFT-PACKAGE> <RIGHT-PACKAGE>
 `,
-	// Uncomment the following line if your bare application
-	// has an action associated with it:
 	Args: cobra.MatchAll(cobra.ExactArgs(2)),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		d := differ.NewDiffer(differ.WithPackages(args[0], args[1]))
@@ -32,7 +31,7 @@ pacdiff <LEFT-PACKAGE> <RIGHT-PACKAGE>
 
 		depthStop, err := depthparser.Parse(cmd.Flags().Lookup("depth-delimiter").Value.String())
 		if err != nil {
-			return err
+			return fmt.Errorf("depth delimiter parse error: %w", err)
 		}
 
 		p := printer.NewPrinter(

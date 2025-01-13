@@ -49,7 +49,7 @@ func (p *Printer) print(depth int, d diff.Diff) {
 				fmt.Printf("%q", vConcrete)
 			}
 		default:
-			panic("unimplemented")
+			panic("printer - unimplemented")
 		}
 		fmt.Printf("\n")
 	}
