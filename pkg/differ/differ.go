@@ -86,6 +86,7 @@ func (d *Differ) Diff() (diff.Diff, error) {
 							}
 							if _, inRight := rightM[field.Names[0].Name]; !inRight {
 								result["type "+leftT.Name.Name] = map[string]any{
+									"type": "struct",
 									"fields": map[string]any{
 										field.Names[0].Name: map[string]any{
 											"presentIn": "left",

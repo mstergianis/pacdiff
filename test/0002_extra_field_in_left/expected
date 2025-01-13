@@ -1,5 +1,6 @@
 {
   "type Todo": {
+    "type": "struct",
     "fields": {
       "ExtraField": {
         "type": "int",
