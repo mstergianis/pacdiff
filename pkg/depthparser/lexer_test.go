@@ -17,11 +17,20 @@ func TestLexer(t *testing.T) {
 			},
 		},
 		{
-			name:  "basic",
+			name:  "basic_space",
 			input: "4s",
 			expected: []token{
 				{typ: tokenNumber, pos: 0, value: "4"},
 				{typ: tokenSpaceType, pos: 1, value: "s"},
+				{pos: 2, typ: tokenEOF},
+			},
+		},
+		{
+			name:  "basic_tab",
+			input: "4t",
+			expected: []token{
+				{typ: tokenNumber, pos: 0, value: "4"},
+				{typ: tokenSpaceType, pos: 1, value: "t"},
 				{pos: 2, typ: tokenEOF},
 			},
 		},
@@ -31,6 +40,15 @@ func TestLexer(t *testing.T) {
 			expected: []token{
 				{typ: tokenError, pos: 0, value: "unsupported characters in input"},
 				{pos: 0, typ: tokenEOF},
+			},
+		},
+		{
+			name:  "basic_dot",
+			input: "4d",
+			expected: []token{
+				{typ: tokenNumber, pos: 0, value: "4"},
+				{typ: tokenSpaceType, pos: 1, value: "d"},
+				{pos: 2, typ: tokenEOF},
 			},
 		},
 	}

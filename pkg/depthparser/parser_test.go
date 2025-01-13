@@ -16,7 +16,7 @@ func TestParse(t *testing.T) {
 		},
 		{
 			name:     "raises error when number is not first",
-			input:    "s2",
+			input:    "s",
 			expected: "",
 			err:      "parse error: expected a number but got spaceType with value \"s\" at position 0",
 		},
@@ -27,9 +27,21 @@ func TestParse(t *testing.T) {
 			err:      "parse error: expected a spaceType but got EOF with value \"\" at position 1",
 		},
 		{
-			name:     "happy path",
+			name:     "happy space path",
 			input:    "2s",
 			expected: "  ",
+			err:      "",
+		},
+		{
+			name:     "happy tab path",
+			input:    "2t",
+			expected: "		",
+			err:      "",
+		},
+		{
+			name:     "happy dot path",
+			input:    "2d",
+			expected: "••",
 			err:      "",
 		},
 	}

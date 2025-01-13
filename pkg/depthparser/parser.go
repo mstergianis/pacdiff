@@ -14,7 +14,7 @@ func Parse(input string) (string, error) {
 		return "", err
 	}
 	if token.typ != tokenNumber {
-		return "", parserErr(incorrectType(tokenNumber, token))
+		return "", incorrectType(tokenNumber, token)
 	}
 	numSpaces, err := strconv.Atoi(token.value)
 	if err != nil {
@@ -27,7 +27,7 @@ func Parse(input string) (string, error) {
 		return "", err
 	}
 	if token.typ != tokenSpaceType {
-		return "", parserErr(incorrectType(tokenSpaceType, token))
+		return "", incorrectType(tokenSpaceType, token)
 	}
 
 	var char rune
@@ -36,6 +36,8 @@ func Parse(input string) (string, error) {
 		char = ' '
 	case "t":
 		char = '	'
+	case "d":
+		char = '•'
 	default:
 		panic(
 			fmt.Sprintf(
@@ -45,9 +47,9 @@ func Parse(input string) (string, error) {
 		)
 	}
 
-	spaceStop := make([]byte, numSpaces)
+	spaceStop := make([]rune, numSpaces)
 	for i := 0; i < numSpaces; i++ {
-		spaceStop[i] = byte(char)
+		spaceStop[i] = char
 	}
 
 	return string(spaceStop), nil
@@ -64,6 +66,6 @@ func parserErr(msg string) error {
 	return fmt.Errorf("parse error: %s", msg)
 }
 
-func incorrectType(tt tokenType, actualToken token) string {
-	return fmt.Sprintf("expected a %s but got %s with value %q at position %d", tt, actualToken.typ, actualToken.value, actualToken.pos)
+func incorrectType(tt tokenType, actualToken token) error {
+	return parserErr(fmt.Sprintf("expected a %s but got %s with value %q at position %d", tt, actualToken.typ, actualToken.value, actualToken.pos))
 }

@@ -75,7 +75,7 @@ func (l *lexer) acceptRun(valid string) {
 const digits = "0123456789"
 
 func (l *lexer) scanSpaceType() bool {
-	return l.accept("st")
+	return l.accept("std")
 }
 
 func (l *lexer) scanNumber() bool {
