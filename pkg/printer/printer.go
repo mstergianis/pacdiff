@@ -5,7 +5,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/mstergianis/pacdiff/pkg/diff"
+	"github.com/mstergianis/pacdiff/pkg/differ"
 )
 
 func NewPrinter(options ...Option) *Printer {
@@ -51,11 +51,13 @@ func (p *Printer) printDepthMarker(depth int) {
 	}
 }
 
-func (p *Printer) PrintUnified(hunks []diff.Hunk) {
-	for _, hunk := range hunks {
-		p.printUnifiedHeader(hunk.LeftName, hunk.RightName)
+func (p *Printer) PrintUnified(fileGroupedHunks differ.GroupedHunksSlice) {
+	for _, fileGroup := range fileGroupedHunks {
+		p.printUnifiedHeader(fileGroup.LeftFile, fileGroup.RightFile)
 
-		p.print(hunk)
+		for _, hunk := range fileGroup.Hunks {
+			p.print(hunk)
+		}
 	}
 }
 

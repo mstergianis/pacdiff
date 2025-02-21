@@ -33,7 +33,7 @@ func WithPackages(left, right string) Option {
 	}
 }
 
-func (d *Differ) TakeDiff() ([]diff.Hunk, error) {
+func (d *Differ) TakeDiff() (GroupedHunksSlice, error) {
 	if err := d.validatePackagePath(d.leftPath); err != nil {
 		return nil, err
 	}
@@ -59,7 +59,7 @@ func (d *Differ) TakeDiff() ([]diff.Hunk, error) {
 		rightPkg = v
 	}
 
-	hunks := []diff.Hunk{}
+	groupedHunks := GroupedHunksSlice{}
 	// compute the diff
 	leftScope, err := NewScopeDispatcher(leftPkg, d.leftPkg.fs)
 	if err != nil {
@@ -74,11 +74,9 @@ func (d *Differ) TakeDiff() ([]diff.Hunk, error) {
 		leftDir := d.leftPath
 		rightDir := d.rightPath
 
-		hunks = append(hunks, diff.Hunk{
-			LeftName:   leftDir,
+		groupedHunks.Add(leftDir, rightDir, diff.Hunk{
 			LeftStart:  1,
 			LeftEnd:    1,
-			RightName:  rightDir,
 			RightStart: 1,
 			RightEnd:   1,
 			Diffs: []diff.Diff{
@@ -126,7 +124,7 @@ func (d *Differ) TakeDiff() ([]diff.Hunk, error) {
 								removedFields = append(removedFields, field)
 								leftFile := leftScope.FileSet.File(leftT.Pos())
 								rightFile := rightScope.FileSet.File(rightT.Pos())
-								hunks = append(hunks, diff.Hunk{
+								groupedHunks.Add(leftFile.Name(), rightFile.Name(), diff.Hunk{
 									LeftName:   leftFile.Name(),
 									LeftStart:  0,
 									LeftEnd:    0,
@@ -145,7 +143,7 @@ func (d *Differ) TakeDiff() ([]diff.Hunk, error) {
 		}
 	}
 
-	return hunks, nil
+	return groupedHunks, nil
 }
 
 func (d *Differ) validatePackage(path string) error {
@@ -271,4 +269,29 @@ type empty struct{}
 
 func fmtPkg(pkg string) string {
 	return fmt.Sprintf("package %s", pkg)
+}
+
+type (
+	GroupedHunksSlice []GroupedHunks
+	GroupedHunks      struct {
+		LeftFile  string
+		RightFile string
+		Hunks     []diff.Hunk
+	}
+)
+
+func (f *GroupedHunksSlice) Add(leftFile, rightFile string, hunk diff.Hunk) {
+	for i := 0; i < len(*f); i++ {
+		if (*f)[i].LeftFile == leftFile && (*f)[i].RightFile == rightFile {
+			(*f)[i].Hunks = append((*f)[i].Hunks, hunk)
+			return
+		}
+	}
+
+	*f = append(*f, GroupedHunks{
+		LeftFile:  leftFile,
+		RightFile: rightFile,
+		Hunks:     []diff.Hunk{hunk},
+	})
+	return
 }
