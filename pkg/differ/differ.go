@@ -125,10 +125,8 @@ func (d *Differ) TakeDiff() (GroupedHunksSlice, error) {
 								leftFile := leftScope.FileSet.File(leftT.Pos())
 								rightFile := rightScope.FileSet.File(rightT.Pos())
 								groupedHunks.Add(leftFile.Name(), rightFile.Name(), diff.Hunk{
-									LeftName:   leftFile.Name(),
 									LeftStart:  0,
 									LeftEnd:    0,
-									RightName:  rightFile.Name(),
 									RightStart: 0,
 									RightEnd:   0,
 									Diffs:      []diff.Diff{},

@@ -1,12 +1,15 @@
 package textdiff
 
 import (
+	"bytes"
 	"fmt"
 	"iter"
 	"slices"
 	"strings"
 
 	"github.com/mstergianis/pacdiff/pkg/diff"
+	"github.com/mstergianis/pacdiff/pkg/differ"
+	"github.com/mstergianis/pacdiff/pkg/printer"
 )
 
 func Myer(left, leftName, right, rightName string) (string, error) {
@@ -18,10 +21,7 @@ func Myer(left, leftName, right, rightName string) (string, error) {
 	trace, d, k := shortestEditTrace(lLines, rLines, n, m, maxMoves)
 	coords := backtrack(trace, d, k, maxMoves)
 
-	var h *diff.Hunk = new(diff.Hunk)
-	h.LeftName = leftName
-	h.RightName = rightName
-
+	h := &diff.Hunk{}
 	h.LeftStart = 1
 	h.LeftEnd = 7
 
@@ -46,7 +46,19 @@ func Myer(left, leftName, right, rightName string) (string, error) {
 		}
 	}
 
-	return fmt.Sprintf("--- %s\n+++ %s\n%s", leftName, rightName, h), nil
+	b := &bytes.Buffer{}
+	p := printer.NewPrinter(printer.WithOutputWriter(b))
+
+	ghs := differ.GroupedHunksSlice{
+		differ.GroupedHunks{
+			LeftFile:  leftName,
+			RightFile: rightName,
+			Hunks:     []diff.Hunk{*h},
+		},
+	}
+	p.PrintUnified(ghs)
+
+	return b.String(), nil
 }
 
 func getCoordPairs(seq iter.Seq[Coord]) iter.Seq2[Coord, Coord] {
