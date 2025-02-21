@@ -1,11 +1,12 @@
-{
-  "type Todo": {
-    "type": "struct",
-    "fields": {
-      "ExtraField": {
-        "type": "int",
-        "presentIn": "left"
-      }
-    }
-  }
-}
+--- ../../test/0002_extra_field_in_left/left
++++ ../../test/0002_extra_field_in_left/right
+@@ -1 +1 @@
+-package apimodels
++package dbmodels
+
+@@ -3,7 +3,6 @@
+ type Todo struct {
+ 	ID          int
+ 	Description string
+-	ExtraField  int
+ }

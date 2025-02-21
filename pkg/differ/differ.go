@@ -14,11 +14,12 @@ import (
 type Differ struct {
 	leftPath  string
 	rightPath string
-	pkgs      map[string]*differPackage
+	leftPkg   *differPackage
+	rightPkg  *differPackage
 }
 
 func NewDiffer(opts ...Option) *Differ {
-	d := &Differ{pkgs: map[string]*differPackage{}}
+	d := &Differ{}
 	for _, opt := range opts {
 		opt(d)
 	}
@@ -32,7 +33,7 @@ func WithPackages(left, right string) Option {
 	}
 }
 
-func (d *Differ) Diff() (diff.Diff, error) {
+func (d *Differ) TakeDiff() ([]diff.Hunk, error) {
 	if err := d.validatePackagePath(d.leftPath); err != nil {
 		return nil, err
 	}
@@ -49,51 +50,91 @@ func (d *Differ) Diff() (diff.Diff, error) {
 	}
 
 	var leftPkg *ast.Package
-	for _, v := range d.pkgs[d.leftPath].pkgs {
+	for _, v := range d.leftPkg.pkgs {
 		leftPkg = v
 	}
 
 	var rightPkg *ast.Package
-	for _, v := range d.pkgs[d.rightPath].pkgs {
+	for _, v := range d.rightPkg.pkgs {
 		rightPkg = v
 	}
 
-	result := diff.Diff{}
+	hunks := []diff.Hunk{}
 	// compute the diff
-	collectScopes(&leftPkg.Scope, leftPkg.Files)
-	collectScopes(&rightPkg.Scope, rightPkg.Files)
+	leftScope, err := NewScopeDispatcher(leftPkg, d.leftPkg.fs)
+	if err != nil {
+		return nil, err
+	}
+	rightScope, err := NewScopeDispatcher(rightPkg, d.rightPkg.fs)
+	if err != nil {
+		return nil, err
+	}
 
-	for k, leftV := range leftPkg.Scope.Objects {
-		// check the diff
-		// rightV := rightPkg.Scope.Objects[k]
-		switch leftT := leftV.Decl.(type) {
+	if leftScope.pkg.Name != rightScope.pkg.Name {
+		leftDir := d.leftPath
+		rightDir := d.rightPath
+
+		hunks = append(hunks, diff.Hunk{
+			LeftName:   leftDir,
+			LeftStart:  1,
+			LeftEnd:    1,
+			RightName:  rightDir,
+			RightStart: 1,
+			RightEnd:   1,
+			Diffs: []diff.Diff{
+				diff.Diff{
+					Typ:     diff.Deletion,
+					Content: fmtPkg(leftScope.pkg.Name),
+				},
+				diff.Diff{
+					Typ:     diff.Insertion,
+					Content: fmtPkg(rightScope.pkg.Name),
+				},
+			},
+		})
+	}
+
+	for k, leftScopedObjectFilePair := range leftScope.Objects {
+		leftScopedObject := leftScopedObjectFilePair.Object
+		// log.Printf("%+v %T\n", leftScopedObject, leftScopedObject)
+		// TODO maybe switch on (*Object).Kind
+		switch leftT := leftScopedObject.Decl.(type) {
 		case *ast.TypeSpec:
 			{
-				rightScopedObject, presentInRightScope := rightPkg.Scope.Objects[k]
+				rightScopedObjectFilePair, presentInRightScope := rightScope.Objects[k]
 				if !presentInRightScope {
 					continue
 				}
+				rightScopedObject := rightScopedObjectFilePair.Object
 				rightT := rightScopedObject.Decl.(*ast.TypeSpec)
 				switch leftConcrete := leftT.Type.(type) {
 				case *ast.StructType:
 					{
 						rightConcrete := rightT.Type.(*ast.StructType)
+
+						// leftM := fieldListToMap(leftConcrete.Fields.List)
 						rightM := fieldListToMap(rightConcrete.Fields.List)
+
+						removedFields := []*ast.Field{}
+						// addedFields := []*ast.Field{}
 
 						for _, field := range leftConcrete.Fields.List {
 							if len(field.Names) == 0 {
 								continue
 							}
 							if _, inRight := rightM[field.Names[0].Name]; !inRight {
-								result["type "+leftT.Name.Name] = map[string]any{
-									"type": "struct",
-									"fields": map[string]any{
-										field.Names[0].Name: map[string]any{
-											"presentIn": "left",
-											"type":      field.Type.(*ast.Ident).Name,
-										},
-									},
-								}
+								removedFields = append(removedFields, field)
+								leftFile := leftScope.FileSet.File(leftT.Pos())
+								rightFile := rightScope.FileSet.File(rightT.Pos())
+								hunks = append(hunks, diff.Hunk{
+									LeftName:   leftFile.Name(),
+									LeftStart:  0,
+									LeftEnd:    0,
+									RightName:  rightFile.Name(),
+									RightStart: 0,
+									RightEnd:   0,
+									Diffs:      []diff.Diff{},
+								})
 							}
 						}
 					}
@@ -104,12 +145,21 @@ func (d *Differ) Diff() (diff.Diff, error) {
 		}
 	}
 
-	return result, nil
+	return hunks, nil
 }
 
 func (d *Differ) validatePackage(path string) error {
-	if len(d.pkgs[path].pkgs) != 1 {
-		return NonOneNumberOfPackages(path, len(d.pkgs[path].pkgs))
+	var pkgs *differPackage
+	switch path {
+	case d.leftPath:
+		pkgs = d.leftPkg
+	case d.rightPath:
+		pkgs = d.rightPkg
+	default:
+		panic("*Differ.validatePackage: an unknown path was submitted")
+	}
+	if len(pkgs.pkgs) != 1 {
+		return NonOneNumberOfPackages(path, len(pkgs.pkgs))
 	}
 
 	return nil
@@ -127,15 +177,21 @@ func (d *Differ) validatePackagePath(path string) error {
 }
 
 func (d *Differ) initPackages() error {
-	for _, path := range []string{d.leftPath, d.rightPath} {
+	for _, v := range []struct {
+		pkg  **differPackage
+		path string
+	}{
+		{pkg: &d.leftPkg, path: d.leftPath},
+		{pkg: &d.rightPkg, path: d.rightPath},
+	} {
 		fs := token.NewFileSet()
 
-		pkgs, err := parser.ParseDir(fs, path, nil, 0)
+		pkgs, err := parser.ParseDir(fs, v.path, nil, 0)
 		if err != nil {
 			return err
 		}
 
-		d.pkgs[path] = &differPackage{
+		*v.pkg = &differPackage{
 			fs:   fs,
 			pkgs: pkgs,
 		}
@@ -151,29 +207,41 @@ type differPackage struct {
 	pkgs map[string]*ast.Package
 }
 
-// collectScopes
-//
-// destructively modifies [packageScope] by collecting all symbols across all [files]
-func collectScopes(packageScope **ast.Scope, files map[string]*ast.File) error {
-	if *packageScope == nil {
-		*packageScope = ast.NewScope(nil)
+type ObjectFilePair struct {
+	File   *ast.File
+	Object *ast.Object
+}
+
+type ScopeDispatcher struct {
+	pkg     *ast.Package
+	Objects fileScope
+	FileSet *token.FileSet
+}
+
+type fileScope map[string]*fileObject
+type fileObject struct {
+	Object *ast.Object
+	File   *ast.File
+}
+
+// NewScopeDispatcher
+func NewScopeDispatcher(pkg *ast.Package, fset *token.FileSet) (*ScopeDispatcher, error) {
+	dispatcher := &ScopeDispatcher{
+		pkg:     pkg,
+		Objects: fileScope{},
+		FileSet: fset,
 	}
 
-	for _, file := range files {
-		if file == nil {
-			continue
-		}
-
+	for _, file := range dispatcher.pkg.Files {
 		for k, obj := range file.Scope.Objects {
-			if _, keyAlreadyPresentInPackage := (*packageScope).Objects[k]; keyAlreadyPresentInPackage {
-				return fmt.Errorf("found duplicate symbol in package: %s", k)
+			if _, keyAlreadyPresentInPackage := dispatcher.Objects[k]; keyAlreadyPresentInPackage {
+				return nil, fmt.Errorf("found duplicate symbol in package: %s", k)
 			}
-
-			(*packageScope).Objects[k] = obj
+			dispatcher.Objects[k] = &fileObject{obj, file}
 		}
-		file.Scope.Outer = *packageScope
 	}
-	return nil
+
+	return dispatcher, nil
 }
 
 func fieldListToMap(l []*ast.Field) map[string]*ast.Field {
@@ -183,4 +251,24 @@ func fieldListToMap(l []*ast.Field) map[string]*ast.Field {
 	}
 
 	return m
+}
+
+func fieldMapKeyUnion(m1, m2 map[string]*ast.Field) map[string]empty {
+	union := map[string]empty{}
+
+	for k := range m1 {
+		union[k] = empty{}
+	}
+
+	for k := range m2 {
+		union[k] = empty{}
+	}
+
+	return union
+}
+
+type empty struct{}
+
+func fmtPkg(pkg string) string {
+	return fmt.Sprintf("package %s", pkg)
 }

@@ -1,6 +1,7 @@
 package differ_test
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -8,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mstergianis/pacdiff/pkg/diff"
 	differ "github.com/mstergianis/pacdiff/pkg/differ"
+	"github.com/mstergianis/pacdiff/pkg/printer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -21,8 +22,8 @@ func TestDiffer(t *testing.T) {
 	require.NoError(t, err, "ReadDir should not fail reading the tests directory")
 
 	t.Run("differ with unset packages", func(t *testing.T) {
-		_, err := differ.NewDiffer().Diff()
-		assert.Equal(t, err, differ.PackageNotExist(""))
+		_, err := differ.NewDiffer().TakeDiff()
+		Equal(t, err, differ.PackageNotExist(""))
 	})
 
 	for _, test := range tests {
@@ -36,13 +37,18 @@ func TestDiffer(t *testing.T) {
 				tc.right,
 			))
 
-			actual, err := d.Diff()
+			actual, err := d.TakeDiff()
 			if tc.errorStr == nil {
 				assert.NoError(t, err)
 			} else {
 				assert.EqualError(t, err, *tc.errorStr)
 			}
-			assert.Equal(t, tc.expected, actual)
+
+			b := &bytes.Buffer{}
+			p := printer.NewPrinter(printer.WithOutputWriter(b))
+			p.PrintUnified(actual)
+
+			Equal(t, string(tc.expected), string(b.Bytes()))
 		})
 	}
 }
@@ -71,7 +77,7 @@ func readTest(dir string) (*testCase, error) {
 				if err != nil {
 					return nil, err
 				}
-				tc.expected, err = diff.ParseDiff(expectedRaw)
+				tc.expected = expectedRaw
 				if err != nil {
 					return nil, err
 				}
@@ -120,6 +126,10 @@ func stringIsEmpty(s string) bool {
 type testCase struct {
 	left     string
 	right    string
-	expected diff.Diff
+	expected []byte
 	errorStr *string
+}
+
+func Equal[T any](t assert.TestingT, expected, actual T, msgAndArgs ...interface{}) bool {
+	return assert.Equal(t, expected, actual, msgAndArgs...)
 }

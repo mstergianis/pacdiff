@@ -1,14 +1,15 @@
 package textdiff
 
 import (
-	"bytes"
 	"fmt"
 	"iter"
 	"slices"
 	"strings"
+
+	"github.com/mstergianis/pacdiff/pkg/diff"
 )
 
-func Myer(left, lName, right, rName string) (string, error) {
+func Myer(left, leftName, right, rightName string) (string, error) {
 	lLines := strings.Split(strings.TrimSuffix(left, "\n"), "\n")
 	rLines := strings.Split(strings.TrimSuffix(right, "\n"), "\n")
 
@@ -17,39 +18,35 @@ func Myer(left, lName, right, rName string) (string, error) {
 	trace, d, k := shortestEditTrace(lLines, rLines, n, m, maxMoves)
 	coords := backtrack(trace, d, k, maxMoves)
 
-	diffSet := []Diff{}
+	var h *diff.Hunk = new(diff.Hunk)
+	h.LeftName = leftName
+	h.RightName = rightName
+
+	h.LeftStart = 1
+	h.LeftEnd = 7
+
+	h.RightStart = 1
+	h.RightEnd = 6
 	for c1, c2 := range getCoordPairs(values(slices.Backward(coords))) {
 		if c1.X < c2.X && c1.Y < c2.Y {
-			diffSet = append(diffSet, Diff{
-				Equality,
-				lLines[c1.X],
+			h.Diffs = append(h.Diffs, diff.Diff{
+				Typ:     diff.Equality,
+				Content: lLines[c1.X],
 			})
 		} else if c1.X < c2.X {
-			diffSet = append(diffSet, Diff{
-				Deletion,
-				lLines[c1.X],
+			h.Diffs = append(h.Diffs, diff.Diff{
+				Typ:     diff.Deletion,
+				Content: lLines[c1.X],
 			})
 		} else {
-			diffSet = append(diffSet, Diff{
-				Insertion,
-				rLines[c1.Y],
+			h.Diffs = append(h.Diffs, diff.Diff{
+				Typ:     diff.Insertion,
+				Content: rLines[c1.Y],
 			})
 		}
 	}
 
-	var buf = new(bytes.Buffer)
-	var (
-		lHunkStart = 1
-		lHunkEnd   = 7
-		rHunkStart = 1
-		rHunkEnd   = 6
-	)
-	fmt.Fprintf(buf, "--- %s\n+++ %s\n@@ -%d,%d +%d,%d @@\n", lName, rName, lHunkStart, lHunkEnd, rHunkStart, rHunkEnd)
-	for _, d := range diffSet {
-		fmt.Fprintln(buf, d)
-	}
-
-	return buf.String(), nil
+	return fmt.Sprintf("--- %s\n+++ %s\n%s", leftName, rightName, h), nil
 }
 
 func getCoordPairs(seq iter.Seq[Coord]) iter.Seq2[Coord, Coord] {
@@ -159,32 +156,3 @@ type Coord struct {
 func (c Coord) String() string {
 	return fmt.Sprintf("(%d,%d)", c.X, c.Y)
 }
-
-type Diff struct {
-	Typ     DiffTyp
-	Content string
-}
-
-func (d DiffTyp) String() string {
-	switch d {
-	case Insertion:
-		return "+"
-	case Deletion:
-		return "-"
-	case Equality:
-		return " "
-	}
-	panic("DiffTyp.String: encountered an unknown DiffTyp")
-}
-
-func (d Diff) String() string {
-	return d.Typ.String() + d.Content
-}
-
-type DiffTyp int
-
-const (
-	Insertion = iota
-	Deletion
-	Equality
-)

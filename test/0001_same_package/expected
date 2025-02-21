@@ -1,1 +1,5 @@
-{}
+--- ../../test/0001_same_package/left
++++ ../../test/0001_same_package/right
+@@ -1 +1 @@
+-package apimodels
++package dbmodels

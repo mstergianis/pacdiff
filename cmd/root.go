@@ -13,6 +13,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var (
+	unifiedOutput bool
+)
+
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "pacdiff <LEFT-PACKAGE> <RIGHT-PACKAGE>",
@@ -24,7 +28,7 @@ pacdiff <LEFT-PACKAGE> <RIGHT-PACKAGE>
 	Args: cobra.MatchAll(cobra.ExactArgs(2)),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		d := differ.NewDiffer(differ.WithPackages(args[0], args[1]))
-		diff, err := d.Diff()
+		diff, err := d.TakeDiff()
 		if err != nil {
 			return err
 		}
@@ -37,7 +41,12 @@ pacdiff <LEFT-PACKAGE> <RIGHT-PACKAGE>
 		p := printer.NewPrinter(
 			printer.WithDepth(depthStop),
 		)
-		p.Print(diff)
+
+		if unifiedOutput {
+			p.PrintUnified(diff)
+			return nil
+		}
+
 		return nil
 	},
 }
@@ -57,6 +66,9 @@ func init() {
 	// will be global for your application.
 
 	// rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.cmd.yaml)")
+
+	// Cobra also supports local flags, which will only run
+	// when this action is called directly.
 	rootCmd.Flags().StringP("depth-delimiter", "d", "2s", `provide a delimiter to use as a depth
 
 grammar:
@@ -65,7 +77,5 @@ grammar:
   number = decimal-digit { decimal-digit } .
   decimal-digit = "0" | "1" | ... | "8" | "9" .
 `)
-
-	// Cobra also supports local flags, which will only run
-	// when this action is called directly.
+	rootCmd.Flags().BoolVarP(&unifiedOutput, "unified", "u", false, "gives unified diff output")
 }
