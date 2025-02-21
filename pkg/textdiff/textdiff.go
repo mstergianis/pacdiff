@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/mstergianis/pacdiff/pkg/diff"
-	"github.com/mstergianis/pacdiff/pkg/differ"
 	"github.com/mstergianis/pacdiff/pkg/printer"
 )
 
@@ -49,8 +48,8 @@ func Myer(left, leftName, right, rightName string) (string, error) {
 	b := &bytes.Buffer{}
 	p := printer.NewPrinter(printer.WithOutputWriter(b))
 
-	ghs := differ.GroupedHunksSlice{
-		differ.GroupedHunks{
+	ghs := diff.GroupedHunksSlice{
+		diff.GroupedHunks{
 			LeftFile:  leftName,
 			RightFile: rightName,
 			Hunks:     []diff.Hunk{*h},

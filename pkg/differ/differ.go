@@ -33,7 +33,7 @@ func WithPackages(left, right string) Option {
 	}
 }
 
-func (d *Differ) TakeDiff() (GroupedHunksSlice, error) {
+func (d *Differ) TakeDiff() (diff.GroupedHunksSlice, error) {
 	if err := d.validatePackagePath(d.leftPath); err != nil {
 		return nil, err
 	}
@@ -59,7 +59,7 @@ func (d *Differ) TakeDiff() (GroupedHunksSlice, error) {
 		rightPkg = v
 	}
 
-	groupedHunks := GroupedHunksSlice{}
+	groupedHunks := diff.GroupedHunksSlice{}
 	// compute the diff
 	leftScope, err := NewScopeDispatcher(leftPkg, d.leftPkg.fs)
 	if err != nil {
@@ -267,29 +267,4 @@ type empty struct{}
 
 func fmtPkg(pkg string) string {
 	return fmt.Sprintf("package %s", pkg)
-}
-
-type (
-	GroupedHunksSlice []GroupedHunks
-	GroupedHunks      struct {
-		LeftFile  string
-		RightFile string
-		Hunks     []diff.Hunk
-	}
-)
-
-func (f *GroupedHunksSlice) Add(leftFile, rightFile string, hunk diff.Hunk) {
-	for i := 0; i < len(*f); i++ {
-		if (*f)[i].LeftFile == leftFile && (*f)[i].RightFile == rightFile {
-			(*f)[i].Hunks = append((*f)[i].Hunks, hunk)
-			return
-		}
-	}
-
-	*f = append(*f, GroupedHunks{
-		LeftFile:  leftFile,
-		RightFile: rightFile,
-		Hunks:     []diff.Hunk{hunk},
-	})
-	return
 }

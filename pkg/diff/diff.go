@@ -4,6 +4,31 @@ import (
 	"fmt"
 )
 
+type (
+	GroupedHunksSlice []GroupedHunks
+	GroupedHunks      struct {
+		LeftFile  string
+		RightFile string
+		Hunks     []Hunk
+	}
+)
+
+func (f *GroupedHunksSlice) Add(leftFile, rightFile string, hunk Hunk) {
+	for i := 0; i < len(*f); i++ {
+		if (*f)[i].LeftFile == leftFile && (*f)[i].RightFile == rightFile {
+			(*f)[i].Hunks = append((*f)[i].Hunks, hunk)
+			return
+		}
+	}
+
+	*f = append(*f, GroupedHunks{
+		LeftFile:  leftFile,
+		RightFile: rightFile,
+		Hunks:     []Hunk{hunk},
+	})
+	return
+}
+
 type Hunk struct {
 	LeftName string
 
