@@ -1,6 +1,3 @@
---- tests/0001_basic/left
-+++ tests/0001_basic/right
-@@ -1,7 +1,6 @@
 -A
 -B
  C

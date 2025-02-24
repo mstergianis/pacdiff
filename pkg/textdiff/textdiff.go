@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/mstergianis/pacdiff/pkg/diff"
-	"github.com/mstergianis/pacdiff/pkg/printer"
 )
 
 func Myer(left, leftName, right, rightName string) (string, error) {
@@ -17,28 +16,23 @@ func Myer(left, leftName, right, rightName string) (string, error) {
 
 	n, m := len(lLines), len(rLines)
 	maxMoves := n + m
-	trace, d, k := shortestEditTrace(lLines, rLines, n, m, maxMoves)
-	coords := backtrack(trace, d, k, maxMoves)
+	trace := shortestEditTrace(lLines, rLines, n, m, maxMoves)
+	coords := backtrack(trace, n, m, maxMoves)
 
-	h := &diff.Hunk{}
-	h.LeftStart = 1
-	h.LeftEnd = 7
-
-	h.RightStart = 1
-	h.RightEnd = 6
+	diffs := []diff.Diff{}
 	for c1, c2 := range getCoordPairs(values(slices.Backward(coords))) {
 		if c1.X < c2.X && c1.Y < c2.Y {
-			h.Diffs = append(h.Diffs, diff.Diff{
+			diffs = append(diffs, diff.Diff{
 				Typ:     diff.Equality,
 				Content: lLines[c1.X],
 			})
 		} else if c1.X < c2.X {
-			h.Diffs = append(h.Diffs, diff.Diff{
+			diffs = append(diffs, diff.Diff{
 				Typ:     diff.Deletion,
 				Content: lLines[c1.X],
 			})
 		} else {
-			h.Diffs = append(h.Diffs, diff.Diff{
+			diffs = append(diffs, diff.Diff{
 				Typ:     diff.Insertion,
 				Content: rLines[c1.Y],
 			})
@@ -46,16 +40,9 @@ func Myer(left, leftName, right, rightName string) (string, error) {
 	}
 
 	b := &bytes.Buffer{}
-	p := printer.NewPrinter(printer.WithOutputWriter(b))
-
-	ghs := diff.GroupedHunksSlice{
-		diff.GroupedHunks{
-			LeftFile:  leftName,
-			RightFile: rightName,
-			Hunks:     []diff.Hunk{*h},
-		},
+	for _, diff := range diffs {
+		fmt.Fprintln(b, diff)
 	}
-	p.PrintUnified(ghs)
 
 	return b.String(), nil
 }
@@ -96,48 +83,40 @@ func values(seq2 iter.Seq2[int, Coord]) iter.Seq[Coord] {
 	}
 }
 
-func backtrack(trace [][]int, d, k, maxMoves int) []Coord {
+func backtrack(trace [][]int, x, y, maxMoves int) []Coord {
 	coords := make([]Coord, 0, maxMoves)
-	for i := len(trace) - 1; i >= 0; i-- {
-		v := trace[i]
-		x := v[k+maxMoves]
-		y := x - k
+	for d, v := range slices.Backward(trace) {
+		k := x - y
 
-		coords = append(coords, Coord{X: x, Y: y})
-		if i == 0 {
-			return coords
-		}
-
+		var prevK int
 		if k == -d || (k != d && v[k-1+maxMoves] < v[k+1+maxMoves]) {
-			k = k + 1
+			prevK = k + 1
 		} else {
-			k = k - 1
+			prevK = k - 1
 		}
 
-		prevV := trace[i-1]
 		var (
-			prevX = prevV[k+maxMoves]
-			prevY = prevX - k
-			diagX = x - 1
-			diagY = y - 1
+			prevX = v[prevK+maxMoves]
+			prevY = prevX - prevK
 		)
-		for ; diagX >= prevX && diagY >= prevY; diagX, diagY = diagX-1, diagY-1 {
-			coords = append(coords, Coord{X: diagX, Y: diagY})
+		for x >= prevX && y >= prevY {
+			coords = append(coords, Coord{X: x, Y: y})
+			x, y = x-1, y-1
 		}
+		x, y = prevX, prevY
 	}
-
 	return coords
 }
 
-func shortestEditTrace(lLines, rLines []string, n, m, maxMoves int) (trace [][]int, d, k int) {
+func shortestEditTrace(lLines, rLines []string, n, m, maxMoves int) (trace [][]int) {
 	trace = make([][]int, 0, maxMoves)
-	for d = 0; d <= maxMoves; d++ {
+	for d := 0; d <= maxMoves; d++ {
 		v := make([]int, 2*maxMoves+1)
 		if d > 0 {
 			copy(v, trace[d-1])
 		}
 		trace = append(trace, v)
-		for k = -d; k <= d; k += 2 {
+		for k := -d; k <= d; k += 2 {
 			var x int
 			if k == -d || (k != d && v[k-1+maxMoves] < v[k+1+maxMoves]) {
 				x = v[k+1+maxMoves]
@@ -156,7 +135,7 @@ func shortestEditTrace(lLines, rLines []string, n, m, maxMoves int) (trace [][]i
 		}
 	}
 
-	return trace, 0, 0
+	return trace
 }
 
 type Coord struct {
